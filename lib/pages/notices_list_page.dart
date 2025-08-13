@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class NoticesListPage extends StatelessWidget {
@@ -36,8 +37,86 @@ class NoticesListPage extends StatelessWidget {
     }
   }
 
-  Future<void> _updateStatus(DocumentReference ref, String status) =>
-      ref.update({'status': status});
+  // ---- Name helpers ---------------------------------------------------------
+
+  String _titleCase(String input) {
+    final parts = input.split(RegExp(r'\s+')).where((e) => e.isNotEmpty);
+    return parts
+        .map(
+          (w) => w.length == 1
+              ? w.toUpperCase()
+              : '${w[0].toUpperCase()}${w.substring(1)}',
+        )
+        .join(' ');
+  }
+
+  String _deriveNameFromEmail(String? email) {
+    if (email == null || email.isEmpty) return 'User';
+    final local = email.split('@').first;
+    // Replace separators with spaces, keep digits if any
+    final cleaned = local.replaceAll(RegExp(r'[._\-]+'), ' ').trim();
+    return _titleCase(cleaned);
+  }
+
+  // Pick best display label for current user: name → username → displayName → email(local-part) → uid
+  Future<String> _currentUserLabel() async {
+    final u = FirebaseAuth.instance.currentUser;
+    if (u == null) return 'User';
+    final uid = u.uid;
+
+    try {
+      final prof = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      final data = prof.data();
+      if (data != null) {
+        final name = (data['name'] ?? '').toString().trim();
+        if (name.isNotEmpty) return name;
+        final username = (data['username'] ?? '').toString().trim();
+        if (username.isNotEmpty) return username;
+      }
+    } catch (_) {}
+
+    final dn = (u.displayName ?? '').trim();
+    if (dn.isNotEmpty) return dn;
+
+    final em = (u.email ?? '').trim();
+    if (em.isNotEmpty) {
+      final friendly = _deriveNameFromEmail(em);
+      // Persist for next time
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'name': friendly,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (_) {}
+      return friendly;
+    }
+
+    return uid; // last fallback
+  }
+
+  // ---- Status update (adds deleted_by as NAME only) -------------------------
+
+  Future<void> _updateStatus(DocumentReference ref, String status) async {
+    if (status == 'Deleted') {
+      final who = await _currentUserLabel(); // <- NAME, not email
+      await ref.update({
+        'status': 'Deleted',
+        'deleted_by': who,
+        'deleted_at': FieldValue.serverTimestamp(),
+      });
+    } else {
+      await ref.update({
+        'status': status,
+        'deleted_by': FieldValue.delete(),
+        'deleted_at': FieldValue.delete(),
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {

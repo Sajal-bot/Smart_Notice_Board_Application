@@ -51,33 +51,33 @@ class _RegisterPageState extends State<RegisterPage> {
     });
 
     try {
-      // Create user (this signs the user in)
+      // Create user (signs in)
       final userCred = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: pass);
 
-      // Save username in Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userCred.user!.uid)
-          .set({
-            'username': username,
-            'email': email,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+      final user = userCred.user!;
+      // ✅ Set displayName so the app can show the person's name
+      await user.updateDisplayName(username);
 
-      // Optional: send verification email (user stays signed-in)
-      await FirebaseAuth.instance.currentUser?.sendEmailVerification();
+      // ✅ Save profile in Firestore (both 'username' and 'name' for compatibility)
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'username': username,
+        'name': username, // <— added
+        'email': email,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
-      // ❗ Do NOT sign out and do NOT navigate back to /login
-      // AuthGate will detect the signed-in user and go to Home automatically.
+      // Optional: verification email
+      await user.sendEmailVerification();
 
       if (!mounted) return;
-      // Optionally show a small note
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Account created. Verification email sent.'),
         ),
       );
+      // Don’t navigate away — AuthGate should pick the signed-in user.
     } on FirebaseAuthException catch (e) {
       setState(() => _error = e.message);
     } finally {
