@@ -14,7 +14,6 @@ class NoticeStatusUpdater {
   void start({Duration every = const Duration(seconds: 10)}) async {
     _timer?.cancel();
     await _syncServerClockSkew(); // one-time calibration
-    // No immediate run to avoid flipping right after creation
     _timer = Timer.periodic(every, (_) => sweepPendingOnce());
   }
 
@@ -39,15 +38,19 @@ class NoticeStatusUpdater {
 
     final status = (data['status'] ?? '') as String;
 
-    // Accept 'scheduled_at' (preferred) or fallback to 'timestamp'.
-    final rawWhen = data['scheduled_at'] ?? data['timestamp'];
+    // Only proceed if scheduled_at exists
+    final rawWhen = data['scheduled_at'];
+    if (rawWhen == null) {
+      // No scheduled time → remain Pending
+      return;
+    }
+
     final whenUtc = _toUtc(rawWhen);
     if (whenUtc == null) return;
 
     // Use server-adjusted "now"
     final nowUtc = DateTime.now().toUtc().add(_clockSkew);
 
-    // STRICT check: only update if now >= scheduled time
     if (status == 'Pending' && !nowUtc.isBefore(whenUtc)) {
       await doc.reference.update({
         'status': 'Displayed',

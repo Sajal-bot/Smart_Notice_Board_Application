@@ -20,8 +20,8 @@ class NoticesListPage extends StatelessWidget {
     return p == 'High'
         ? Colors.red.shade100
         : p == 'Low'
-        ? Colors.green.shade100
-        : cs.secondaryContainer.withOpacity(.6);
+            ? Colors.green.shade100
+            : cs.secondaryContainer.withOpacity(.6);
   }
 
   Color _statusColor(String s) {
@@ -37,8 +37,6 @@ class NoticesListPage extends StatelessWidget {
     }
   }
 
-  // ---- Name helpers ---------------------------------------------------------
-
   String _titleCase(String input) {
     final parts = input.split(RegExp(r'\s+')).where((e) => e.isNotEmpty);
     return parts
@@ -53,12 +51,10 @@ class NoticesListPage extends StatelessWidget {
   String _deriveNameFromEmail(String? email) {
     if (email == null || email.isEmpty) return 'User';
     final local = email.split('@').first;
-    // Replace separators with spaces, keep digits if any
-    final cleaned = local.replaceAll(RegExp(r'[._\-]+'), ' ').trim();
+    final cleaned = local.replaceAll(RegExp(r'[._\\-]+'), ' ').trim();
     return _titleCase(cleaned);
   }
 
-  // Pick best display label for current user: name → username → displayName → email(local-part) → uid
   Future<String> _currentUserLabel() async {
     final u = FirebaseAuth.instance.currentUser;
     if (u == null) return 'User';
@@ -84,7 +80,6 @@ class NoticesListPage extends StatelessWidget {
     final em = (u.email ?? '').trim();
     if (em.isNotEmpty) {
       final friendly = _deriveNameFromEmail(em);
-      // Persist for next time
       try {
         await FirebaseFirestore.instance.collection('users').doc(uid).set({
           'name': friendly,
@@ -94,14 +89,12 @@ class NoticesListPage extends StatelessWidget {
       return friendly;
     }
 
-    return uid; // last fallback
+    return uid;
   }
-
-  // ---- Status update (adds deleted_by as NAME only) -------------------------
 
   Future<void> _updateStatus(DocumentReference ref, String status) async {
     if (status == 'Deleted') {
-      final who = await _currentUserLabel(); // <- NAME, not email
+      final who = await _currentUserLabel();
       await ref.update({
         'status': 'Deleted',
         'deleted_by': who,
@@ -116,7 +109,14 @@ class NoticesListPage extends StatelessWidget {
     }
   }
 
-  // ---------------------------------------------------------------------------
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null) return '—';
+    if (timestamp is Timestamp) {
+      final dateTime = timestamp.toDate();
+      return dateTime.toString().split('.').first;
+    }
+    return timestamp.toString();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -141,8 +141,9 @@ class NoticesListPage extends StatelessWidget {
               return const Center(child: CircularProgressIndicator());
             }
             final docs = snap.data?.docs ?? [];
-            if (docs.isEmpty)
+            if (docs.isEmpty) {
               return const Center(child: Text('No notices yet.'));
+            }
 
             return ListView.separated(
               padding: const EdgeInsets.all(12),
@@ -159,64 +160,106 @@ class NoticesListPage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                   elevation: 2,
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: _priorityColor(context, pr),
-                      child: Icon(
-                        pr == 'High'
-                            ? Icons.priority_high
-                            : pr == 'Low'
-                            ? Icons.low_priority
-                            : Icons.label_important_outline,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    title: Text(d['text'] ?? ''),
-                    subtitle: Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Chip(
-                          label: Text('Priority: $pr'),
-                          backgroundColor: _priorityColor(context, pr),
-                        ),
-                        Chip(
-                          label: Text('Status: $st'),
-                          backgroundColor: _statusColor(st),
-                        ),
-                        Chip(label: Text(_fmtTs(d['timestamp']))),
-                      ],
-                    ),
-                    trailing: PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert),
-                      onSelected: (v) async {
-                        await _updateStatus(doc.reference, v);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(SnackBar(content: Text('Marked $v')));
-                        }
-                      },
-                      itemBuilder: (ctx) => const [
-                        PopupMenuItem(
-                          value: 'Displayed',
-                          child: ListTile(
-                            leading: Icon(Icons.play_circle_outline),
-                            title: Text('Mark as Displayed'),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: CircleAvatar(
+                            backgroundColor: _priorityColor(context, pr),
+                            child: Icon(
+                              pr == 'High'
+                                  ? Icons.priority_high
+                                  : pr == 'Low'
+                                      ? Icons.low_priority
+                                      : Icons.label_important_outline,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          title: Text(d['text'] ?? ''),
+                          subtitle: Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: [
+                              Chip(
+                                label: Text('Priority: $pr'),
+                                backgroundColor: _priorityColor(context, pr),
+                              ),
+                              Chip(
+                                label: Text('Status: $st'),
+                                backgroundColor: _statusColor(st),
+                              ),
+                            ],
+                          ),
+                          trailing: PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert),
+                            onSelected: (v) async {
+                              await _updateStatus(doc.reference, v);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Marked $v')),
+                                );
+                              }
+                            },
+                            itemBuilder: (ctx) => const [
+                              PopupMenuItem(
+                                value: 'Displayed',
+                                child: ListTile(
+                                  leading: Icon(Icons.play_circle_outline),
+                                  title: Text('Mark as Displayed'),
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'Archived',
+                                child: ListTile(
+                                  leading: Icon(Icons.archive_outlined),
+                                  title: Text('Archive'),
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'Deleted',
+                                child: ListTile(
+                                  leading: Icon(Icons.delete_outline),
+                                  title: Text('Move to Deleted'),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        PopupMenuItem(
-                          value: 'Archived',
-                          child: ListTile(
-                            leading: Icon(Icons.archive_outlined),
-                            title: Text('Archive'),
+                        const SizedBox(height: 4),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            "Submitted at: ${_formatTimestamp(d['timestamp'])}",
+                            style: const TextStyle(fontSize: 13),
+                            overflow: TextOverflow.visible,
+                            softWrap: true,
                           ),
                         ),
-                        PopupMenuItem(
-                          value: 'Deleted',
-                          child: ListTile(
-                            leading: Icon(Icons.delete_outline),
-                            title: Text('Move to Deleted'),
+                        const SizedBox(height: 4),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            d['scheduled_at'] != null
+                                ? "Scheduled Display at: ${_formatTimestamp(d['scheduled_at'])}"
+                                : "Scheduled Display at: Not defined",
+                            style: const TextStyle(fontSize: 13),
+                            overflow: TextOverflow.visible,
+                            softWrap: true,
                           ),
                         ),
                       ],
