@@ -18,9 +18,16 @@ import 'pages/login_page.dart';
 import 'pages/register_page.dart';
 import 'pages/home_page.dart';
 
+// Background updater
+import 'notice_status_updater.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Start periodic status updater (runs while app is open)
+  NoticeStatusUpdater.instance.start(); // checks immediately, then every 1 minute
+
   runApp(const MyApp());
 }
 

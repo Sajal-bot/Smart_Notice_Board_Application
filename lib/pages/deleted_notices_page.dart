@@ -90,7 +90,7 @@ class DeletedNoticesPage extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // text area
+                        // Text area with the notice content
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,76 +113,89 @@ class DeletedNoticesPage extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: 6),
-                              _deletedByPill(who), // ← always show
+                              _deletedByPill(who), // Always show deleted by info
                             ],
                           ),
                         ),
                         const SizedBox(width: 12),
-                        // actions
+                        // Column for the actions (Restore & Delete buttons)
                         Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 8,
+                            // **Restore Button**:
+                            // This button will restore the deleted notice to 'Pending' status.
+                            SizedBox(
+                              width: 100, // Fixed width to ensure both buttons are the same
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
+                                  minimumSize: const Size(0, 0),
                                 ),
-                                minimumSize: const Size(0, 0),
+                                onPressed: () async {
+                                  await doc.reference.update({
+                                    'status': 'Pending',
+                                    'deleted_by': FieldValue.delete(),
+                                    'deleted_at': FieldValue.delete(),
+                                  });
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Restored')),
+                                    );
+                                  }
+                                },
+                                icon: const Icon(Icons.restore, size: 18),
+                                label: const Text('Restore'),
                               ),
-                              onPressed: () async {
-                                await doc.reference.update({
-                                  'status': 'Pending',
-                                  'deleted_by': FieldValue.delete(),
-                                  'deleted_at': FieldValue.delete(),
-                                });
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Restored')),
-                                  );
-                                }
-                              },
-                              icon: const Icon(Icons.restore, size: 18),
-                              label: const Text('Restore'),
                             ),
                             const SizedBox(height: 8),
-                            TextButton.icon(
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 8,
-                                ),
-                                minimumSize: const Size(0, 0),
-                              ),
-                              onPressed: () async {
-                                final ok = await showDialog<bool>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: const Text('Delete forever?'),
-                                    content: const Text(
-                                      'This cannot be undone.',
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, false),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, true),
-                                        child: const Text('Delete'),
-                                      ),
-                                    ],
+                            // **Delete Button**:
+                            // This button will permanently delete the notice from the database.
+                            // It shows a confirmation dialog before proceeding with the deletion.
+                            SizedBox(
+                              width: 100, // Same fixed width as Restore button
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
                                   ),
-                                );
-                                if (ok == true) await doc.reference.delete();
-                              },
-                              icon: const Icon(
-                                Icons.delete_forever_outlined,
-                                size: 18,
+                                  minimumSize: const Size(0, 0),
+                                  side: BorderSide(color: Colors.red),  // Red border
+                                  foregroundColor: Colors.red,  // Red text and icon
+                                ),
+                                onPressed: () async {
+                                  final ok = await showDialog<bool>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('Delete forever?'),
+                                      content: const Text(
+                                        'This cannot be undone.',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, false),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, true),
+                                          child: const Text('Delete'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (ok == true) await doc.reference.delete();
+                                },
+                                icon: const Icon(
+                                  Icons.delete_forever_outlined,
+                                  size: 18,
+                                ),
+                                label: const Text('Delete'),
                               ),
-                              label: const Text('Delete'),
                             ),
                           ],
                         ),
