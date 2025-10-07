@@ -17,6 +17,7 @@ import 'package:notify_app/pages/submit_notice_page.dart';
 import 'pages/login_page.dart';
 import 'pages/register_page.dart';
 import 'pages/home_page.dart';
+import 'pages/notices_fr_page.dart';
 
 // Background updater
 import 'notice_status_updater.dart';
@@ -37,7 +38,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Smart Notice Board',
+      title: 'Notify',
       debugShowCheckedModeBanner: false,
 
       // Start from our animated splash
@@ -60,6 +61,7 @@ class MyApp extends StatelessWidget {
         '/notices': (_) => const NoticesListPage(),
         '/current': (_) => const CurrentNoticePage(),
         '/deleted': (_) => const DeletedNoticesPage(),
+        '/notices-fr': (context) => const NoticesFRPage(),
       },
     );
   }

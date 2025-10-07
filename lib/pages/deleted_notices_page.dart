@@ -1,25 +1,50 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:rxdart/rxdart.dart';
+import 'package:intl/intl.dart';
 
 class DeletedNoticesPage extends StatelessWidget {
   const DeletedNoticesPage({super.key});
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _stream() => FirebaseFirestore
-      .instance
-      .collection('notices')
-      .where('status', isEqualTo: 'Deleted')
-      .orderBy('timestamp', descending: true) // stable ordering
-      .snapshots();
+  /// 🔹 Combine deleted notices from both `notices` and `notices_fr`
+  Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>> _mergedStream() {
+    final frStream = FirebaseFirestore.instance
+        .collection('notices_fr')
+        .where('status', isEqualTo: 'Deleted')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
 
-  String _fmtTs(dynamic ts) =>
-      ts is Timestamp ? ts.toDate().toString().split('.').first : '—';
+    final normalStream = FirebaseFirestore.instance
+        .collection('notices')
+        .where('status', isEqualTo: 'Deleted')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
 
-  // 🌸 Pastel "Deleted by" pill (always shows; falls back to 'Unknown')
+    // ✅ FIX: Use Rx.combineLatest2 to merge both streams
+    return Rx.combineLatest2<
+        QuerySnapshot<Map<String, dynamic>>,
+        QuerySnapshot<Map<String, dynamic>>,
+        List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+      frStream,
+      normalStream,
+      (fr, normal) => [...fr.docs, ...normal.docs],
+    );
+  }
+
+  /// Format Firestore Timestamp → readable text
+  String _fmtTs(dynamic ts) {
+    if (ts is Timestamp) {
+      return DateFormat('dd MMM yyyy, hh:mm a').format(ts.toDate());
+    }
+    return '—';
+  }
+
+  /// "Deleted by" pill
   Widget _deletedByPill(String who) {
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFF8E7FF), Color(0xFFFFE6F1)], // lavender → pink
+          colors: [Color(0xFFF8E7FF), Color(0xFFFFE6F1)],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
@@ -44,8 +69,9 @@ class DeletedNoticesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Deleted Notices')), // no const AppBar
+      appBar: AppBar(title: const Text('Deleted Notices')),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -57,15 +83,17 @@ class DeletedNoticesPage extends StatelessWidget {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: _stream(),
+        child: StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+          stream: _mergedStream(),
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
-            final docs = snap.data?.docs ?? [];
-            if (docs.isEmpty)
+
+            final docs = snap.data ?? [];
+            if (docs.isEmpty) {
               return const Center(child: Text('Trash is empty.'));
+            }
 
             return ListView.separated(
               padding: const EdgeInsets.all(12),
@@ -75,10 +103,14 @@ class DeletedNoticesPage extends StatelessWidget {
                 final doc = docs[i];
                 final d = doc.data();
 
-                final text = (d['text'] ?? '').toString();
+                final text = (d['text'] ??
+                        d['notice'] ??
+                        '[No text provided]')
+                    .toString();
                 final deletedAt = d['deleted_at'] ?? d['timestamp'];
                 final whoRaw = (d['deleted_by'] ?? '').toString().trim();
-                final who = whoRaw.isEmpty ? 'Unknown' : whoRaw; // ← fallback
+                final who = whoRaw.isEmpty ? 'Unknown' : whoRaw;
+                final source = doc.reference.parent.id; // "notices" or "notices_fr"
 
                 return Card(
                   elevation: 2,
@@ -90,7 +122,7 @@ class DeletedNoticesPage extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Text area with the notice content
+                        // Text and metadata section
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,37 +144,44 @@ class DeletedNoticesPage extends StatelessWidget {
                                   color: Colors.black54,
                                 ),
                               ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Source: $source',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
+                              ),
                               const SizedBox(height: 6),
-                              _deletedByPill(who), // Always show deleted by info
+                              _deletedByPill(who),
                             ],
                           ),
                         ),
                         const SizedBox(width: 12),
-                        // Column for the actions (Restore & Delete buttons)
+                        // Buttons
                         Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // **Restore Button**:
-                            // This button will restore the deleted notice to 'Pending' status.
+                            // Restore Button
                             SizedBox(
-                              width: 100, // Fixed width to ensure both buttons are the same
+                              width: 100,
                               child: OutlinedButton.icon(
                                 style: OutlinedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 8,
-                                  ),
+                                      horizontal: 10, vertical: 8),
                                   minimumSize: const Size(0, 0),
                                 ),
                                 onPressed: () async {
                                   await doc.reference.update({
-                                    'status': 'Pending',
+                                    'status': 'Displayed',
                                     'deleted_by': FieldValue.delete(),
                                     'deleted_at': FieldValue.delete(),
                                   });
+
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Restored')),
+                                      const SnackBar(
+                                          content: Text('Restored')),
                                     );
                                   }
                                 },
@@ -151,20 +190,16 @@ class DeletedNoticesPage extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            // **Delete Button**:
-                            // This button will permanently delete the notice from the database.
-                            // It shows a confirmation dialog before proceeding with the deletion.
+                            // Delete Forever Button
                             SizedBox(
-                              width: 100, // Same fixed width as Restore button
+                              width: 100,
                               child: OutlinedButton.icon(
                                 style: OutlinedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 8,
-                                  ),
+                                      horizontal: 10, vertical: 8),
                                   minimumSize: const Size(0, 0),
-                                  side: BorderSide(color: Colors.red),  // Red border
-                                  foregroundColor: Colors.red,  // Red text and icon
+                                  side: const BorderSide(color: Colors.red),
+                                  foregroundColor: Colors.red,
                                 ),
                                 onPressed: () async {
                                   final ok = await showDialog<bool>(
@@ -172,8 +207,7 @@ class DeletedNoticesPage extends StatelessWidget {
                                     builder: (ctx) => AlertDialog(
                                       title: const Text('Delete forever?'),
                                       content: const Text(
-                                        'This cannot be undone.',
-                                      ),
+                                          'This cannot be undone.'),
                                       actions: [
                                         TextButton(
                                           onPressed: () =>
@@ -188,7 +222,17 @@ class DeletedNoticesPage extends StatelessWidget {
                                       ],
                                     ),
                                   );
-                                  if (ok == true) await doc.reference.delete();
+                                  if (ok == true) {
+                                    await doc.reference.delete();
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Deleted forever'),
+                                        ),
+                                      );
+                                    }
+                                  }
                                 },
                                 icon: const Icon(
                                   Icons.delete_forever_outlined,

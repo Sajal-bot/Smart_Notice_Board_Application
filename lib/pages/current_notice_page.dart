@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:rxdart/rxdart.dart';
 
 class CurrentNoticePage extends StatelessWidget {
   const CurrentNoticePage({super.key});
@@ -19,31 +20,52 @@ class CurrentNoticePage extends StatelessWidget {
     }
   }
 
+  /// 🔹 Combine normal notices + FR notices (Displayed only)
+  Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>> _mergedStream() {
+    final normalStream = FirebaseFirestore.instance
+        .collection('notices')
+        .where('status', isEqualTo: 'Displayed')
+        .orderBy('scheduled_at', descending: true)
+        .snapshots();
+
+    final frStream = FirebaseFirestore.instance
+        .collection('notices_fr')
+        .where('status', isEqualTo: 'Displayed')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
+
+    return Rx.combineLatest2<
+        QuerySnapshot<Map<String, dynamic>>,
+        QuerySnapshot<Map<String, dynamic>>,
+        List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+      normalStream,
+      frStream,
+      (normal, fr) => [...normal.docs, ...fr.docs],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Running Now"),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('notices')
-            .where('status', isEqualTo: 'Displayed')
-            .orderBy('scheduled_at', descending: true)
-            .snapshots(),
+      body: StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+        stream: _mergedStream(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // Copy and sort locally by priority
-          final notices = snapshot.data!.docs.toList()
+          final notices = snapshot.data!.toList()
             ..sort((a, b) {
-              final pa = _priorityOrder((a['priority'] ?? 'Normal') as String);
-              final pb = _priorityOrder((b['priority'] ?? 'Normal') as String);
-              if (pa != pb) return pb.compareTo(pa); // sort High > Normal > Low
-              return (b['scheduled_at'] ?? Timestamp.now())
-                  .compareTo(a['scheduled_at'] ?? Timestamp.now());
+              final pa =
+                  _priorityOrder((a.data()['priority'] ?? 'Normal') as String);
+              final pb =
+                  _priorityOrder((b.data()['priority'] ?? 'Normal') as String);
+              if (pa != pb) return pb.compareTo(pa);
+              return (b.data()['scheduled_at'] ?? b.data()['timestamp'] ?? Timestamp.now())
+                  .compareTo(a.data()['scheduled_at'] ?? a.data()['timestamp'] ?? Timestamp.now());
             });
 
           if (notices.isEmpty) {
@@ -54,16 +76,17 @@ class CurrentNoticePage extends StatelessWidget {
             padding: const EdgeInsets.all(8),
             itemCount: notices.length,
             itemBuilder: (context, index) {
-              final data = notices[index].data() as Map<String, dynamic>;
+              final data = notices[index].data();
 
-              final priority = data['priority'] ?? 'Normal';
-              final status = data['status'] ?? 'Unknown';
+              final text = (data['text'] ?? data['notice'] ?? '').toString();
+              final priority = (data['priority'] ?? 'Normal').toString();
+              final status = (data['status'] ?? 'Displayed').toString();
 
               String scheduledAt = 'Not defined';
-              if (data.containsKey('scheduled_at') &&
-                  data['scheduled_at'] != null) {
-                scheduledAt = DateFormat('dd MMM yyyy, hh:mm a')
-                    .format(data['scheduled_at'].toDate());
+              final ts = data['scheduled_at'] ?? data['timestamp'];
+              if (ts != null && ts is Timestamp) {
+                scheduledAt =
+                    DateFormat('dd MMM yyyy, hh:mm a').format(ts.toDate());
               }
 
               return Card(
@@ -79,7 +102,7 @@ class CurrentNoticePage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        data['text'] ?? '',
+                        text,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
