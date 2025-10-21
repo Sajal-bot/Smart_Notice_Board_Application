@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'notices_fr_page.dart';
+import 'distilbert_page.dart';
+
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -239,6 +241,16 @@ class _HomePageState extends State<HomePage> {
                           MaterialPageRoute(
                             builder: (context) => const NoticesFRPage(),
                           ),
+                        );
+                      },
+                    ),
+                    _ActionTile(
+                      icon: Icons.analytics_outlined,
+                      label: 'DistilBERT',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const DistilBertPage()),
                         );
                       },
                     ),

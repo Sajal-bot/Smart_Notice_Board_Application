@@ -11,7 +11,7 @@ class CurrentNoticePage extends StatelessWidget {
     switch (priority) {
       case 'High':
         return 3;
-      case 'Normal':
+      case 'Medium':
         return 2;
       case 'Low':
         return 1;
@@ -118,9 +118,11 @@ class CurrentNoticePage extends StatelessWidget {
                               'Priority: $priority',
                               style: const TextStyle(fontSize: 12),
                             ),
-                            backgroundColor: priority == 'High'
-                                ? Colors.red[200]
-                                : Colors.purple[100],
+                          backgroundColor: priority == 'High'
+                              ? Colors.red[100]
+                              : priority == 'Medium'
+                                  ? Colors.purple[100]
+                                  : Colors.green[100],
                           ),
                           Chip(
                             label: Text(

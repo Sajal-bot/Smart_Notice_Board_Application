@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../services/distilbert_service.dart';
+
 
 class SubmitNoticePage extends StatefulWidget {
   const SubmitNoticePage({super.key});
@@ -10,7 +12,7 @@ class SubmitNoticePage extends StatefulWidget {
 
 class _SubmitNoticePageState extends State<SubmitNoticePage> {
   final _text = TextEditingController();
-  String _priority = 'Normal';
+  String _priority = 'Medium';
   DateTime? _scheduledAt;
   bool _busy = false;
 
@@ -48,12 +50,27 @@ class _SubmitNoticePageState extends State<SubmitNoticePage> {
   Future<void> _submit() async {
     final txt = _text.text.trim();
     if (txt.isEmpty) return;
+
     setState(() => _busy = true);
+
     try {
+      // ✅ Step 1: Call AI API (with safety timeout)
+      final predictedPriorityRaw = await DistilBertService.getPriority(txt);
+      final predictedPriority = predictedPriorityRaw.toString().toLowerCase().contains('high')
+          ? 'High'
+          : predictedPriorityRaw.toString().toLowerCase().contains('medium')
+              ? 'Medium'
+              : 'Low';
+      print("🧠 Predicted Priority (Normalized): $predictedPriority");
+
+
+      setState(() => _priority = predictedPriority);
+
+      // ✅ Step 2: Upload to Firestore
       final uid = FirebaseAuth.instance.currentUser!.uid;
       await FirebaseFirestore.instance.collection('notices').add({
         'text': txt,
-        'priority': _priority,
+        'priority': predictedPriority,
         'status': 'Pending',
         'user_id': uid,
         'timestamp': FieldValue.serverTimestamp(),
@@ -62,11 +79,20 @@ class _SubmitNoticePageState extends State<SubmitNoticePage> {
             : Timestamp.fromDate(_scheduledAt!),
         'source': 'app',
       });
+
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Notice submitted')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ Notice submitted successfully')),
+      );
       Navigator.pop(context);
+    } catch (e, st) {
+      print("❌ Error submitting notice: $e");
+      print(st);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: ${e.toString()}")),
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -75,7 +101,7 @@ class _SubmitNoticePageState extends State<SubmitNoticePage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom; // keyboard
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Submit Notice')),
@@ -114,14 +140,13 @@ class _SubmitNoticePageState extends State<SubmitNoticePage> {
                       ),
                       const SizedBox(height: 12),
 
-                      // ⬇️ Wrap avoids horizontal overflow on small screens
+                      // AI-driven Priority Display (disabled dropdown)
                       Wrap(
                         spacing: 12,
                         runSpacing: 12,
                         children: [
                           SizedBox(
-                            width:
-                                360, // gives room on large screens, will be clamped on small
+                            width: 360,
                             child: DropdownButtonFormField<String>(
                               value: _priority,
                               items: const [
@@ -130,18 +155,17 @@ class _SubmitNoticePageState extends State<SubmitNoticePage> {
                                   child: Text('Low'),
                                 ),
                                 DropdownMenuItem(
-                                  value: 'Normal',
-                                  child: Text('Normal'),
+                                  value: 'Medium',
+                                  child: Text('Medium'),
                                 ),
                                 DropdownMenuItem(
                                   value: 'High',
                                   child: Text('High'),
                                 ),
                               ],
-                              onChanged: (v) =>
-                                  setState(() => _priority = v ?? 'Normal'),
+                              onChanged: null, // Disabled
                               decoration: const InputDecoration(
-                                labelText: 'Priority',
+                                labelText: 'Priority (auto-assigned by AI)',
                                 border: OutlineInputBorder(),
                               ),
                             ),
@@ -153,10 +177,10 @@ class _SubmitNoticePageState extends State<SubmitNoticePage> {
                               _scheduledAt == null
                                   ? 'Schedule (optional)'
                                   : _scheduledAt!
-                                        .toLocal()
-                                        .toString()
-                                        .split('.')
-                                        .first,
+                                      .toLocal()
+                                      .toString()
+                                      .split('.')
+                                      .first,
                             ),
                           ),
                         ],
@@ -194,9 +218,9 @@ class _SubmitNoticePageState extends State<SubmitNoticePage> {
                     label: Text('Priority: $_priority'),
                     backgroundColor: _priority == 'High'
                         ? Colors.red[100]
-                        : _priority == 'Low'
-                        ? Colors.green[100]
-                        : Colors.amber[100],
+                        : _priority == 'Medium'
+                            ? Colors.orange[100]
+                            : Colors.green[100],
                   ),
                 ],
               ),
