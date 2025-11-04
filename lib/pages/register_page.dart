@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -38,9 +37,17 @@ class _RegisterPageState extends State<RegisterPage> {
     final pass = _password.text;
     final conf = _confirm.text;
 
-    // keep your original guards (unchanged)
+    // Validate if all fields are filled and password matches
     if (username.isEmpty) {
       setState(() => _error = 'Please enter a username.');
+      return;
+    }
+    if (email.isEmpty) {
+      setState(() => _error = 'Please enter an email address.');
+      return;
+    }
+    if (pass.isEmpty) {
+      setState(() => _error = 'Please enter a password.');
       return;
     }
     if (pass.length < 6) {
@@ -58,30 +65,25 @@ class _RegisterPageState extends State<RegisterPage> {
     });
 
     try {
-      // Create user (signs in) — same as your code
+      // Create user in Firebase Authentication
       final userCred = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: pass);
 
       final user = userCred.user!;
       await user.updateDisplayName(username);
 
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-        'username': username,
-        'name': username,
-        'email': email,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      await user.sendEmailVerification();
-
       if (!mounted) return;
+
+      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Account created. Verification email sent.'),
+          content: Text('Account created successfully!'),
         ),
       );
-      // No navigation here — your AuthGate will handle it.
+
+      // Replace current screen with the login page after successful registration
+      Navigator.pushReplacementNamed(context, '/login');  // Ensure '/login' route exists
+
     } on FirebaseAuthException catch (e) {
       setState(() => _error = e.message);
     } finally {
@@ -148,7 +150,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // top icon — mirrors Login
+                          // Top icon for registration
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
@@ -175,7 +177,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                           const SizedBox(height: 16),
 
-                          // error banner (same behavior as Login)
+                          // Error message display
                           AnimatedSwitcher(
                             duration: const Duration(milliseconds: 250),
                             child: _error == null
@@ -211,15 +213,14 @@ class _RegisterPageState extends State<RegisterPage> {
                                   ),
                           ),
 
-                          // form (keeps your logic; validators are light UX hints)
                           Form(
                             key: _formKey,
                             child: Column(
                               children: [
+                                // Username field
                                 TextFormField(
                                   controller: _username,
                                   textInputAction: TextInputAction.next,
-                                  autofillHints: const [AutofillHints.username],
                                   decoration: _decor(
                                     label: 'Username',
                                     icon: Icons.person_outline,
@@ -227,14 +228,11 @@ class _RegisterPageState extends State<RegisterPage> {
                                   ),
                                 ),
                                 const SizedBox(height: 12),
+                                // Email field
                                 TextFormField(
                                   controller: _email,
                                   keyboardType: TextInputType.emailAddress,
                                   textInputAction: TextInputAction.next,
-                                  autofillHints: const [
-                                    AutofillHints.email,
-                                    AutofillHints.newUsername,
-                                  ],
                                   decoration: _decor(
                                     label: 'Email',
                                     icon: Icons.alternate_email,
@@ -242,13 +240,11 @@ class _RegisterPageState extends State<RegisterPage> {
                                   ),
                                 ),
                                 const SizedBox(height: 12),
+                                // Password field
                                 TextFormField(
                                   controller: _password,
                                   obscureText: _obscurePass,
                                   textInputAction: TextInputAction.next,
-                                  autofillHints: const [
-                                    AutofillHints.newPassword,
-                                  ],
                                   decoration: _decor(
                                     label: 'Password',
                                     icon: Icons.lock_outline,
@@ -266,6 +262,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                   ),
                                 ),
                                 const SizedBox(height: 12),
+                                // Confirm password field
                                 TextFormField(
                                   controller: _confirm,
                                   obscureText: _obscureConfirm,

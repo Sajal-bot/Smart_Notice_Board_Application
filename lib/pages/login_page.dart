@@ -32,11 +32,17 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      // Sign in user using Firebase
+      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _email.text.trim(),
         password: _password.text,
       );
-      // No manual navigation — AuthGate will show Home
+
+      // If login is successful, navigate to home page and clear the navigation stack
+      if (userCredential.user != null) {
+        // Replace current screen with Home page
+        Navigator.pushReplacementNamed(context, '/home'); // Ensure '/home' route exists
+      }
     } on FirebaseAuthException catch (e) {
       setState(() => _error = e.message ?? 'Login failed');
     } finally {

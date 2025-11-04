@@ -1,11 +1,9 @@
-// lib/pages/home_page.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'notices_fr_page.dart';
 import 'distilbert_page.dart';
-
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,7 +13,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // Update these to your actual asset file names
   final List<String> _images = const [
     'assets/images/image111.png',
     'assets/images/image222.png',
@@ -59,6 +56,7 @@ class _HomePageState extends State<HomePage> {
     return null;
   }
 
+  // Method to handle logout functionality
   Future<void> _confirmAndLogout() async {
     final shouldLogout = await showDialog<bool>(
       context: context,
@@ -82,13 +80,13 @@ class _HomePageState extends State<HomePage> {
 
     if (shouldLogout == true) {
       await FirebaseAuth.instance.signOut();
-      // AuthGate will automatically show Login
+      // After sign out, navigate to the login page and clear the stack
+      Navigator.pushReplacementNamed(context, '/login'); // Replace with login route
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // responsive banner height (~35% of screen)
     final double bannerHeight = MediaQuery.of(context).size.height * 0.35;
 
     return Scaffold(
@@ -98,12 +96,11 @@ class _HomePageState extends State<HomePage> {
           IconButton(
             tooltip: 'Logout',
             icon: const Icon(Icons.logout),
-            onPressed: _confirmAndLogout,
+            onPressed: _confirmAndLogout, // Log out when clicked
           ),
         ],
       ),
       body: FutureBuilder<String?>(
-        // for "Welcome, <username>"
         future: _usernameFuture,
         builder: (context, snap) {
           final username = snap.data ?? 'User';
@@ -261,7 +258,6 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 12),
 
               // ======= (Optional) anything else you want under grid =======
-              // Example placeholder section (remove if not needed)
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
@@ -322,4 +318,3 @@ class _ActionTile extends StatelessWidget {
     );
   }
 }
-
