@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'notices_fr_page.dart';
 import 'distilbert_page.dart';
+import 'poster_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -228,6 +229,11 @@ class _HomePageState extends State<HomePage> {
                       icon: Icons.delete_outline,
                       label: 'Deleted',
                       onTap: () => Navigator.pushNamed(context, '/deleted'),
+                    ),
+                    _ActionTile(
+                      icon: Icons.photo_library_outlined,
+                      label: 'Posters',
+                      onTap: () => Navigator.pushNamed(context, '/posters'),
                     ),
                     _ActionTile(
                       icon: Icons.face_retouching_natural,

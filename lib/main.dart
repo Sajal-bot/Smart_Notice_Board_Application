@@ -18,6 +18,7 @@ import 'pages/login_page.dart';
 import 'pages/register_page.dart';
 import 'pages/home_page.dart';
 import 'pages/notices_fr_page.dart';
+import 'pages/poster_page.dart';
 
 // Background updater
 import 'notice_status_updater.dart';
@@ -62,6 +63,8 @@ class MyApp extends StatelessWidget {
         '/current': (_) => const CurrentNoticePage(),
         '/deleted': (_) => const DeletedNoticesPage(),
         '/notices-fr': (context) => const NoticesFRPage(),
+        '/posters': (_) => const PostersPage(),
+
       },
     );
   }
