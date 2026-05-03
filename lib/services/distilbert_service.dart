@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 
 class DistilBertService {
   static const String _baseUrl =
+<<<<<<< HEAD
       "https://taha2222141-apiweb.hf.space/predict";
 
   static Future<String> getPriority(String text) async {
@@ -11,12 +12,19 @@ class DistilBertService {
       print("NOTICE TEXT: $text");
       print("API URL: $_baseUrl");
 
+=======
+      "https://taha2222141-apiweb.hf.space/predict"; // ✅ Your Hugging Face API endpoint
+
+  static Future<String> getPriority(String text) async {
+    try {
+>>>>>>> 64ed81801480cd129f0fc1b5aa8a1aa17d014eda
       final response = await http.post(
         Uri.parse(_baseUrl),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"text": text}),
       );
 
+<<<<<<< HEAD
       print("STATUS CODE: ${response.statusCode}");
       print("RAW RESPONSE BODY: ${response.body}");
 
@@ -44,12 +52,35 @@ class DistilBertService {
         return "Low";
       } else {
         print("FINAL LABEL: Low (fallback - non 200 response)");
+=======
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        // ✅ Extract and normalize the priority
+        final raw = (data["priority"] ?? "Low").toString().toLowerCase();
+
+        if (raw.contains("high")) return "High";
+        if (raw.contains("medium")) return "Medium";
+        if (raw.contains("low")) return "Low";
+
+        // fallback
+        return "Low";
+      } else {
+        print("❌ API Error: ${response.statusCode} ${response.body}");
+>>>>>>> 64ed81801480cd129f0fc1b5aa8a1aa17d014eda
         return "Low";
       }
     } catch (e) {
       print("⚠️ Error calling DistilBERT API: $e");
+<<<<<<< HEAD
       print("FINAL LABEL: Low (fallback - exception)");
       return "Low";
     }
   }
 }
+=======
+      return "Low";
+    }
+  }
+}
+>>>>>>> 64ed81801480cd129f0fc1b5aa8a1aa17d014eda
