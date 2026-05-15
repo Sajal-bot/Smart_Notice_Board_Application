@@ -28,7 +28,6 @@ class _DistilBertPageState extends State<DistilBertPage> {
     return "—";
   }
 
-<<<<<<< HEAD
   String _extractUserName(Map<String, dynamic> data) {
     final possibleKeys = [
       'user',
@@ -72,8 +71,6 @@ class _DistilBertPageState extends State<DistilBertPage> {
     return "Unknown";
   }
 
-=======
->>>>>>> 64ed81801480cd129f0fc1b5aa8a1aa17d014eda
   Future<void> _updatePriority(DocumentReference ref, String newPriority) async {
     await ref.update({'priority': newPriority});
     if (mounted) {
@@ -93,10 +90,7 @@ class _DistilBertPageState extends State<DistilBertPage> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-<<<<<<< HEAD
 
-=======
->>>>>>> 64ed81801480cd129f0fc1b5aa8a1aa17d014eda
           final docs = snapshot.data ?? [];
           if (docs.isEmpty) {
             return const Center(child: Text('No notices found.'));
@@ -117,7 +111,6 @@ class _DistilBertPageState extends State<DistilBertPage> {
               final ref = docs[i].reference;
 
               final text = (data['notice'] ?? data['text'] ?? '').toString();
-<<<<<<< HEAD
               final user = _extractUserName(data);
               final status = (data['status'] ?? 'Pending').toString();
               final priority = (data['priority'] ?? 'Normal').toString();
@@ -125,13 +118,6 @@ class _DistilBertPageState extends State<DistilBertPage> {
               final source = ref.path.contains('notices_fr')
                   ? 'Face Recognition'
                   : 'App';
-=======
-              final user = (data['user'] ?? data['person'] ?? 'Unknown').toString();
-              final status = (data['status'] ?? 'Pending').toString();
-              final priority = (data['priority'] ?? 'Normal').toString();
-              final ts = data['timestamp'];
-              final source = ref.path.contains('notices_fr') ? 'Face Recognition' : 'App';
->>>>>>> 64ed81801480cd129f0fc1b5aa8a1aa17d014eda
 
               Color badgeColor;
               switch (priority.toLowerCase()) {
@@ -153,14 +139,10 @@ class _DistilBertPageState extends State<DistilBertPage> {
                 child: ListTile(
                   title: Text(
                     text,
-<<<<<<< HEAD
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
-=======
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
->>>>>>> 64ed81801480cd129f0fc1b5aa8a1aa17d014eda
                   ),
                   subtitle: Padding(
                     padding: const EdgeInsets.only(top: 6.0),
@@ -177,14 +159,10 @@ class _DistilBertPageState extends State<DistilBertPage> {
                             color: badgeColor,
                             borderRadius: BorderRadius.circular(6),
                           ),
-<<<<<<< HEAD
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
                             vertical: 4,
                           ),
-=======
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
->>>>>>> 64ed81801480cd129f0fc1b5aa8a1aa17d014eda
                           child: Text(
                             'Priority: $priority',
                             style: const TextStyle(fontWeight: FontWeight.w600),
@@ -210,8 +188,4 @@ class _DistilBertPageState extends State<DistilBertPage> {
       ),
     );
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 64ed81801480cd129f0fc1b5aa8a1aa17d014eda
